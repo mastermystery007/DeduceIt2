@@ -4,18 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -25,30 +14,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -72,12 +43,17 @@ import com.mysterybox.deduceit2.data.MysteryCase
 import com.mysterybox.deduceit2.viewmodel.AccusationResult
 import com.mysterybox.deduceit2.viewmodel.DetectiveViewModel
 
+private const val FREE_CASE_COUNT = 2
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     viewModel: DetectiveViewModel,
+    unlockedCaseIds: Set<Int> = (1..FREE_CASE_COUNT).toSet(),
     onOpenCase: (Int) -> Unit,
-    onOpenHowToPlay: () -> Unit
+    onOpenHowToPlay: () -> Unit,
+    showPrivacyOptions: Boolean = false,
+    onOpenPrivacyOptions: () -> Unit = {}
 ) {
     val completedIds by viewModel.completedCaseIds.collectAsState()
 
@@ -94,6 +70,11 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    if (showPrivacyOptions) {
+                        IconButton(onClick = onOpenPrivacyOptions) {
+                            Icon(Icons.Default.PrivacyTip, "Privacy choices", tint = NoirAmber)
+                        }
+                    }
                     IconButton(onClick = onOpenHowToPlay) {
                         Icon(Icons.Default.HelpOutline, "How to play", tint = NoirAmber)
                     }
@@ -123,7 +104,14 @@ fun DashboardScreen(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 14.dp)
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+            )
+            Text(
+                text = "Cases 1–$FREE_CASE_COUNT are free. Watch one rewarded ad to permanently unlock each later case.",
+                color = MutedGrey,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 14.dp)
             )
             Text(
                 text = "CASE FILES",
@@ -133,13 +121,17 @@ fun DashboardScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             LazyColumn(
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(bottom = 20.dp)
             ) {
                 items(viewModel.cases) { mystery ->
+                    val solved = mystery.id in completedIds
+                    val locked = mystery.id > FREE_CASE_COUNT && mystery.id !in unlockedCaseIds
                     CaseCard(
                         mystery = mystery,
-                        solved = mystery.id in completedIds,
+                        solved = solved,
+                        locked = locked,
                         onClick = { onOpenCase(mystery.id) }
                     )
                 }
@@ -149,19 +141,25 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun CaseCard(mystery: MysteryCase, solved: Boolean, onClick: () -> Unit) {
+private fun CaseCard(
+    mystery: MysteryCase,
+    solved: Boolean,
+    locked: Boolean,
+    onClick: () -> Unit
+) {
     val difficultyColor = when (mystery.difficulty) {
         "Easy" -> ClueGreen
         "Medium" -> NoirAmber
         else -> BloodRed
     }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .border(
-                width = if (solved) 1.dp else 0.dp,
-                color = if (solved) ClueGreen else Color.Transparent,
+                width = if (solved) 1.dp else if (locked) 1.dp else 0.dp,
+                color = if (solved) ClueGreen else if (locked) NoirAmber.copy(alpha = 0.45f) else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(containerColor = CharcoalSurface)
@@ -174,18 +172,23 @@ private fun CaseCard(mystery: MysteryCase, solved: Boolean, onClick: () -> Unit)
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     Badge(mystery.difficulty.uppercase(), difficultyColor)
                     if (mystery.hasLiar) Badge("ONE LIAR", BloodRed)
+                    if (locked) Badge("WATCH AD", NoirAmber)
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = "Case #${mystery.id}: ${mystery.title}",
-                    color = GridWhite,
+                    color = if (locked) SlateGrey else GridWhite,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = mystery.story,
+                    text = if (locked) {
+                        "Watch a rewarded ad once to unlock this case permanently."
+                    } else {
+                        mystery.story
+                    },
                     color = MutedGrey,
                     fontSize = 12.sp,
                     maxLines = 2,
@@ -194,9 +197,21 @@ private fun CaseCard(mystery: MysteryCase, solved: Boolean, onClick: () -> Unit)
             }
             Spacer(Modifier.width(12.dp))
             Icon(
-                imageVector = if (solved) Icons.Default.CheckCircle else Icons.Default.PlayArrow,
-                contentDescription = if (solved) "Solved" else "Open",
-                tint = if (solved) ClueGreen else NoirAmber,
+                imageVector = when {
+                    solved -> Icons.Default.CheckCircle
+                    locked -> Icons.Default.Lock
+                    else -> Icons.Default.PlayArrow
+                },
+                contentDescription = when {
+                    solved -> "Solved"
+                    locked -> "Unlock with rewarded ad"
+                    else -> "Open"
+                },
+                tint = when {
+                    solved -> ClueGreen
+                    locked -> NoirAmber
+                    else -> NoirAmber
+                },
                 modifier = Modifier.size(30.dp)
             )
         }
@@ -249,11 +264,12 @@ fun HowToPlayScreen(onDone: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            InstructionCard("1. READ THE FILE", "Study the story, cast descriptions, physical clues, and witness statements.")
-            InstructionCard("2. MARK THE GRID", "Tap a cell to cycle through X, O, and blank. Use X to exclude a pairing and O to confirm it.")
-            InstructionCard("3. FIND THE COMPLETE MATCH", "Every suspect has exactly one weapon and one location. Every weapon and location is used once.")
+            InstructionCard("1. READ THE DOSSIER", "Start with the incident report, verified clues, and witness statements.")
+            InstructionCard("2. REVIEW THE CAST", "Study the suspects, possible objects, and locations involved in the case.")
+            InstructionCard("3. MARK THE GRID", "Tap a cell to cycle through X, O, and blank. Use X to exclude a pairing and O to confirm it.")
             InstructionCard("4. HANDLE LIAR CASES", "When a case says exactly one witness is lying, test all three statements and identify the false witness.")
-            InstructionCard("5. MAKE THE ACCUSATION", "Choose the culprit, weapon, location, and liar when required. A correct accusation closes the case.")
+            InstructionCard("5. MAKE THE ACCUSATION", "Choose the culprit, object, location, and liar when required. Checking an accusation is free.")
+            InstructionCard("CASE ACCESS", "Cases 1 and 2 are free. Each later case is permanently unlocked after one rewarded ad.")
             Button(
                 onClick = onDone,
                 colors = ButtonDefaults.buttonColors(containerColor = NoirAmber, contentColor = Color.Black),
@@ -294,7 +310,7 @@ fun CasePlayScreen(
     val result by viewModel.accusationResult.collectAsState()
     val activeCase = mystery ?: return
 
-    var tab by remember(activeCase.id) { mutableStateOf("CAST") }
+    var tab by remember(activeCase.id) { mutableStateOf("DOSSIER") }
     var showSolvedDialog by remember { mutableStateOf(false) }
     var showRevealDialog by remember { mutableStateOf(false) }
     var adNotice by remember { mutableStateOf<String?>(null) }
@@ -347,23 +363,28 @@ fun CasePlayScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Badge(activeCase.difficulty.uppercase(), when (activeCase.difficulty) {
-                        "Easy" -> ClueGreen
-                        "Medium" -> NoirAmber
-                        else -> BloodRed
-                    })
+                    Badge(
+                        activeCase.difficulty.uppercase(),
+                        when (activeCase.difficulty) {
+                            "Easy" -> ClueGreen
+                            "Medium" -> NoirAmber
+                            else -> BloodRed
+                        }
+                    )
                     if (activeCase.hasLiar) Badge("ONE LIAR", BloodRed)
                 }
-                if (completed) Text("SOLVED", color = ClueGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                if (completed) {
+                    Text("SOLVED", color = ClueGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
             }
 
             Spacer(Modifier.height(14.dp))
-            TabRow(selected = tab, onSelect = { tab = it })
+            CaseTabRow(selected = tab, onSelect = { tab = it })
             Spacer(Modifier.height(16.dp))
 
             when (tab) {
-                "CAST" -> CastTab(activeCase)
                 "DOSSIER" -> DossierTab(activeCase, checkedClues, viewModel::toggleClueChecked)
+                "CAST" -> CastTab(activeCase)
                 "GRID" -> LogicGridTab(activeCase, grid, viewModel::toggleGridCell, viewModel::resetGrid)
                 "DEDUCE" -> DeduceTab(
                     mystery = activeCase,
@@ -377,23 +398,14 @@ fun CasePlayScreen(
                     onWeapon = viewModel::chooseWeapon,
                     onLocation = viewModel::chooseLocation,
                     onLiar = viewModel::chooseLiar,
-                    onCheck = {
-                        rewardedAdManager.show(
-                            purpose = RewardedAdPurpose.CheckAnswer,
-                            onRewarded = viewModel::checkAccusation,
-                            onUnavailable = {
-                                adNotice = "Rewarded ad was unavailable, so the answer was checked without one."
-                                viewModel.checkAccusation()
-                            }
-                        )
-                    },
+                    onCheck = viewModel::checkAccusation,
                     onReveal = {
+                        adNotice = null
                         rewardedAdManager.show(
                             purpose = RewardedAdPurpose.RevealSolution,
                             onRewarded = { showRevealDialog = true },
                             onUnavailable = {
-                                adNotice = "Rewarded ad was unavailable, so the solution was revealed without one."
-                                showRevealDialog = true
+                                adNotice = "Rewarded ad is not ready. Please try again shortly."
                             }
                         )
                     }
@@ -423,8 +435,8 @@ fun CasePlayScreen(
 }
 
 @Composable
-private fun TabRow(selected: String, onSelect: (String) -> Unit) {
-    val tabs = listOf("CAST", "DOSSIER", "GRID", "DEDUCE")
+private fun CaseTabRow(selected: String, onSelect: (String) -> Unit) {
+    val tabs = listOf("DOSSIER", "CAST", "GRID", "DEDUCE")
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -448,33 +460,9 @@ private fun TabRow(selected: String, onSelect: (String) -> Unit) {
                     color = if (selected == tab) Color.Black else MutedGrey,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 10.sp
+                    fontSize = 9.sp,
+                    maxLines = 1
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CastTab(mystery: MysteryCase) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        CastSection("SUSPECTS", mystery.suspects, mystery.suspectDescriptions)
-        CastSection("OBJECTS", mystery.weapons, mystery.weaponDescriptions)
-        CastSection("LOCATIONS", mystery.locations, mystery.locationDescriptions)
-    }
-}
-
-@Composable
-private fun CastSection(title: String, items: List<String>, descriptions: Map<String, String>) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-        items.forEach { item ->
-            Card(colors = CardDefaults.cardColors(containerColor = CharcoalSurface)) {
-                Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                    Text(item, color = GridWhite, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
-                    Text(descriptions[item].orEmpty(), color = SlateGrey, fontSize = 13.sp)
-                }
             }
         }
     }
@@ -530,6 +518,31 @@ private fun DossierTab(
 }
 
 @Composable
+private fun CastTab(mystery: MysteryCase) {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        CastSection("SUSPECTS", mystery.suspects, mystery.suspectDescriptions)
+        CastSection("OBJECTS", mystery.weapons, mystery.weaponDescriptions)
+        CastSection("LOCATIONS", mystery.locations, mystery.locationDescriptions)
+    }
+}
+
+@Composable
+private fun CastSection(title: String, items: List<String>, descriptions: Map<String, String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        items.forEach { item ->
+            Card(colors = CardDefaults.cardColors(containerColor = CharcoalSurface)) {
+                Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                    Text(item, color = GridWhite, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(descriptions[item].orEmpty(), color = SlateGrey, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun LogicGridTab(
     mystery: MysteryCase,
     grid: Map<Pair<Int, Int>, String>,
@@ -566,7 +579,7 @@ private fun LogicGridTab(
                 Row {
                     GridHeaderCell(rowName, 100)
                     columns.forEachIndexed { columnIndex, _ ->
-                        val enabled = !(rowIndex >= 3 && columnIndex >= 3)
+                        val enabled = !(rowIndex >= mystery.locations.size && columnIndex >= mystery.suspects.size)
                         GridCell(
                             mark = grid[rowIndex to columnIndex].orEmpty(),
                             enabled = enabled,
@@ -671,10 +684,10 @@ private fun DeduceTab(
             Text("CHECK ACCUSATION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         }
         OutlinedButton(onClick = onReveal, modifier = Modifier.fillMaxWidth()) {
-            Text("REVEAL SOLUTION", color = BloodRed, fontFamily = FontFamily.Monospace)
+            Text("WATCH AD TO REVEAL SOLUTION", color = BloodRed, fontFamily = FontFamily.Monospace)
         }
         Text(
-            "Release builds may show a rewarded ad before checking or revealing. Debug builds skip ads.",
+            "Checking an accusation is free. Revealing the solution early requires a rewarded ad.",
             color = MutedGrey,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
@@ -694,17 +707,17 @@ private fun SelectionMenu(
     Column {
         Text(label.uppercase(), color = MutedGrey, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
         Spacer(Modifier.height(4.dp))
-        Box {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
-                Text(selected ?: "Select $label", color = selected?.let { GridWhite } ?: MutedGrey)
+                Text(selected ?: "Select $label", color = if (selected == null) MutedGrey else GridWhite)
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 options.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option) },
                         onClick = {
-                            expanded = false
                             onSelected(option)
+                            expanded = false
                         }
                     )
                 }
@@ -714,20 +727,31 @@ private fun SelectionMenu(
 }
 
 @Composable
-private fun SolutionDialog(title: String, mystery: MysteryCase, onDismiss: () -> Unit) {
+private fun SolutionDialog(
+    title: String,
+    mystery: MysteryCase,
+    onDismiss: () -> Unit
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(title, color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SolutionLine("Culprit", mystery.solutionSuspect)
-                SolutionLine("Object", mystery.solutionWeapon)
-                SolutionLine("Location", mystery.solutionLocation)
-                if (mystery.hasLiar) SolutionLine("False witness", mystery.solutionLiar.orEmpty())
+            Column(
+                modifier = Modifier.heightIn(max = 500.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Card(colors = CardDefaults.cardColors(containerColor = SlateCard)) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        SolutionRow("CULPRIT", mystery.solutionSuspect)
+                        SolutionRow("OBJECT", mystery.solutionWeapon)
+                        SolutionRow("LOCATION", mystery.solutionLocation)
+                        if (mystery.solutionLiar != null) SolutionRow("FALSE WITNESS", mystery.solutionLiar)
+                    }
+                }
                 HorizontalDivider(color = MutedGrey.copy(alpha = 0.35f))
-                Text("EXPLANATION", color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("CASE EXPLANATION", color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 Text(mystery.explanation, color = SlateGrey, lineHeight = 20.sp)
             }
         },
@@ -741,9 +765,15 @@ private fun SolutionDialog(title: String, mystery: MysteryCase, onDismiss: () ->
 }
 
 @Composable
-private fun SolutionLine(label: String, value: String) {
-    Row {
-        Text("$label:", color = NoirAmber, modifier = Modifier.width(105.dp), fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+private fun SolutionRow(label: String, value: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "$label:",
+            color = NoirAmber,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp,
+            modifier = Modifier.width(105.dp)
+        )
         Text(value, color = GridWhite, fontWeight = FontWeight.Bold, fontSize = 12.sp)
     }
 }
