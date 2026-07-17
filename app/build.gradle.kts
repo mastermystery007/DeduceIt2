@@ -24,6 +24,10 @@ android {
             .orElse(providers.gradleProperty("ADMOB_REWARDED_CHECK_ANSWER_ID"))
             .orElse(testRewardedId)
             .get()
+        val rewardedUnlockId = providers.environmentVariable("ADMOB_REWARDED_UNLOCK_CASE_ID")
+            .orElse(providers.gradleProperty("ADMOB_REWARDED_UNLOCK_CASE_ID"))
+            .orElse(testRewardedId)
+            .get()
         val rewardedRevealId = providers.environmentVariable("ADMOB_REWARDED_REVEAL_SOLUTION_ID")
             .orElse(providers.gradleProperty("ADMOB_REWARDED_REVEAL_SOLUTION_ID"))
             .orElse(testRewardedId)
@@ -31,6 +35,7 @@ android {
 
         manifestPlaceholders["adMobAppId"] = adMobAppId
         buildConfigField("String", "ADMOB_REWARDED_CHECK_ANSWER_ID", "\"$rewardedCheckId\"")
+        buildConfigField("String", "ADMOB_REWARDED_UNLOCK_CASE_ID", "\"$rewardedUnlockId\"")
         buildConfigField("String", "ADMOB_REWARDED_REVEAL_SOLUTION_ID", "\"$rewardedRevealId\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -88,6 +93,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.play.services.ads)
+    implementation(libs.user.messaging.platform)
 
     testImplementation(libs.junit)
     debugImplementation(libs.androidx.compose.ui.tooling)
