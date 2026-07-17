@@ -5,10 +5,12 @@ Deduce It 2 is a standalone Android detective logic-grid game built with Kotlin 
 ## Features
 
 - Ten original mystery cases
-- Suspect, weapon, and location deduction grids
-- Clue checklists and cast dossiers
+- Cases 1 and 2 are free; later cases permanently unlock after one rewarded ad each
+- Suspect, object, and location deduction grids
+- Dossier-first navigation with clue checklists and cast profiles
 - Special cases where exactly one witness is lying
-- Rewarded-ad hooks for checking and revealing answers
+- Free accusation checking and rewarded early solution reveals
+- Google UMP consent flow with privacy choices
 - Automated tests that brute-force every puzzle and verify a unique solution
 
 ## Development
@@ -21,7 +23,7 @@ Release builds can read these environment variables:
 - `STORE_PASSWORD`
 - `KEY_PASSWORD`
 - `ADMOB_APP_ID`
-- `ADMOB_REWARDED_CHECK_ANSWER_ID`
+- `ADMOB_REWARDED_UNLOCK_CASE_ID`
 - `ADMOB_REWARDED_REVEAL_SOLUTION_ID`
 
-Debug builds bypass rewarded ads so puzzles can be tested quickly.
+Debug builds use Google's test ad configuration and instantly grant fake rewards so the unlock flow can be tested quickly.
