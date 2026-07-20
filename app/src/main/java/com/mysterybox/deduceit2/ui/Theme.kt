@@ -1,39 +1,56 @@
 package com.mysterybox.deduceit2.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 
-val CarbonDark = Color(0xFF0B0D10)
-val CharcoalSurface = Color(0xFF15181D)
-val SlateCard = Color(0xFF20242B)
+val CarbonDark = Color(0xFF0F0F11)
+val CharcoalSurface = Color(0xFF161619)
+val SlateCard = Color(0xFF222227)
 val NoirAmber = Color(0xFFFFB300)
-val GridWhite = Color(0xFFF4F4F4)
-val SlateGrey = Color(0xFFB0BEC5)
-val MutedGrey = Color(0xFF7C8791)
-val BloodRed = Color(0xFFD64B4B)
-val ClueGreen = Color(0xFF8BC34A)
+val BloodRed = Color(0xFFD32F2F)
+val MutedGrey = Color(0xFF9EA3B0)
+val SlateGrey = Color(0xFFCFD8DC)
+val ClueGreen = Color(0xFF388E3C)
+val GridWhite = Color(0xFFE0E0E0)
+val SelectedBox = Color(0xFF2B2B30)
 
-private val DeduceColorScheme = darkColorScheme(
+private val DeduceTypography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
+)
+
+private val CarbonNoirColorScheme = darkColorScheme(
     primary = NoirAmber,
-    onPrimary = Color.Black,
-    secondary = ClueGreen,
+    secondary = BloodRed,
+    tertiary = ClueGreen,
     background = CarbonDark,
-    onBackground = GridWhite,
     surface = CharcoalSurface,
+    onPrimary = Color.Black,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = GridWhite,
     onSurface = GridWhite,
-    error = BloodRed
+    surfaceVariant = SlateCard,
+    onSurfaceVariant = SlateGrey
 )
 
 @Composable
-fun DeduceItTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
+fun DeduceItTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = DeduceColorScheme,
+        colorScheme = CarbonNoirColorScheme,
+        typography = DeduceTypography,
         content = content
     )
 }
