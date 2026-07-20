@@ -1,18 +1,21 @@
 package com.mysterybox.deduceit2
 
 import android.app.Application
-import androidx.test.core.app.ApplicationProvider
 import com.mysterybox.deduceit2.viewmodel.DetectiveViewModel
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class ViewModelGridTest {
     private lateinit var application: Application
 
     @Before
     fun clearProgress() {
-        application = ApplicationProvider.getApplicationContext()
+        application = RuntimeEnvironment.getApplication()
         application.getSharedPreferences("deduce_it_2_progress", 0).edit().clear().commit()
     }
 
