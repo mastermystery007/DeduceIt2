@@ -47,8 +47,8 @@ class DetectiveViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun selectCase(caseId: Int?) {
         _activeCase.value = cases.firstOrNull { it.id == caseId }
-        _activeGrid.value = emptyMap()
-        _checkedClues.value = emptySet()
+        _activeGrid.value = caseId?.let(::loadGrid) ?: emptyMap()
+        _checkedClues.value = caseId?.let(::loadCheckedClues) ?: emptySet()
         _chosenSuspect.value = null
         _chosenWeapon.value = null
         _chosenLocation.value = null
@@ -58,25 +58,51 @@ class DetectiveViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun toggleGridCell(row: Int, column: Int) {
+        val caseId = _activeCase.value?.id ?: return
+        if (row !in 0..5 || column !in 0..5 || (row >= 3 && column >= 3)) return
+
         val key = row to column
-        val next = when (_activeGrid.value[key]) {
+        val current = _activeGrid.value
+        val next = when (current[key]) {
             "X" -> "O"
             "O" -> ""
             else -> "X"
         }
-        _activeGrid.value = _activeGrid.value.toMutableMap().apply {
-            if (next.isEmpty()) remove(key) else put(key, next)
+        val updated = current.toMutableMap()
+
+        if (next.isEmpty()) updated.remove(key) else updated[key] = next
+
+        if (next == "O") {
+            val rowGroup = if (row < 3) 0..2 else 3..5
+            val columnGroup = if (column < 3) 0..2 else 3..5
+
+            for (otherColumn in columnGroup) {
+                val otherKey = row to otherColumn
+                if (otherColumn != column && current[otherKey] != "O") updated[otherKey] = "X"
+            }
+            for (otherRow in rowGroup) {
+                val otherKey = otherRow to column
+                if (otherRow != row && current[otherKey] != "O") updated[otherKey] = "X"
+            }
         }
+
+        _activeGrid.value = updated
+        persistGrid(caseId, updated)
     }
 
     fun resetGrid() {
+        val caseId = _activeCase.value?.id ?: return
         _activeGrid.value = emptyMap()
+        persistGrid(caseId, emptyMap())
     }
 
     fun toggleClueChecked(index: Int) {
-        _checkedClues.value = _checkedClues.value.toMutableSet().apply {
+        val caseId = _activeCase.value?.id ?: return
+        val updated = _checkedClues.value.toMutableSet().apply {
             if (!add(index)) remove(index)
         }
+        _checkedClues.value = updated
+        persistCheckedClues(caseId, updated)
     }
 
     fun chooseSuspect(value: String) { _chosenSuspect.value = value; clearResult() }
@@ -110,6 +136,44 @@ class DetectiveViewModel(application: Application) : AndroidViewModel(applicatio
         _completedCaseIds.value = _completedCaseIds.value + id
         persistCompletedIds()
         _isActiveCaseCompleted.value = true
+    }
+
+    private fun gridKey(caseId: Int) = "grid_case_$caseId"
+    private fun cluesKey(caseId: Int) = "clues_case_$caseId"
+
+    private fun loadGrid(caseId: Int): Map<Pair<Int, Int>, String> = preferences
+        .getString(gridKey(caseId), "")
+        .orEmpty()
+        .split(';')
+        .mapNotNull { encoded ->
+            val parts = encoded.split(':')
+            if (parts.size != 3) return@mapNotNull null
+            val row = parts[0].toIntOrNull() ?: return@mapNotNull null
+            val column = parts[1].toIntOrNull() ?: return@mapNotNull null
+            val mark = parts[2]
+            if (row !in 0..5 || column !in 0..5 || mark !in setOf("X", "O")) null
+            else (row to column) to mark
+        }
+        .toMap()
+
+    private fun persistGrid(caseId: Int, grid: Map<Pair<Int, Int>, String>) {
+        val encoded = grid.entries
+            .sortedWith(compareBy({ it.key.first }, { it.key.second }))
+            .joinToString(";") { (cell, mark) -> "${cell.first}:${cell.second}:$mark" }
+        preferences.edit().putString(gridKey(caseId), encoded).apply()
+    }
+
+    private fun loadCheckedClues(caseId: Int): Set<Int> = preferences
+        .getString(cluesKey(caseId), "")
+        .orEmpty()
+        .split(',')
+        .mapNotNull { it.toIntOrNull() }
+        .toSet()
+
+    private fun persistCheckedClues(caseId: Int, clues: Set<Int>) {
+        preferences.edit()
+            .putString(cluesKey(caseId), clues.sorted().joinToString(","))
+            .apply()
     }
 
     private fun loadCompletedIds(): Set<Int> = preferences
