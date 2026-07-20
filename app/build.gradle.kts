@@ -24,6 +24,10 @@ android {
             .orElse(providers.gradleProperty("ADMOB_REWARDED_UNLOCK_CASE_ID"))
             .orElse(testRewardedId)
             .get()
+        val rewardedRevealLiarId = providers.environmentVariable("ADMOB_REWARDED_REVEAL_LIAR_ID")
+            .orElse(providers.gradleProperty("ADMOB_REWARDED_REVEAL_LIAR_ID"))
+            .orElse(testRewardedId)
+            .get()
         val rewardedRevealId = providers.environmentVariable("ADMOB_REWARDED_REVEAL_SOLUTION_ID")
             .orElse(providers.gradleProperty("ADMOB_REWARDED_REVEAL_SOLUTION_ID"))
             .orElse(testRewardedId)
@@ -31,6 +35,7 @@ android {
 
         manifestPlaceholders["adMobAppId"] = adMobAppId
         buildConfigField("String", "ADMOB_REWARDED_UNLOCK_CASE_ID", "\"$rewardedUnlockId\"")
+        buildConfigField("String", "ADMOB_REWARDED_REVEAL_LIAR_ID", "\"$rewardedRevealLiarId\"")
         buildConfigField("String", "ADMOB_REWARDED_REVEAL_SOLUTION_ID", "\"$rewardedRevealId\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -94,6 +99,8 @@ dependencies {
     implementation(libs.user.messaging.platform)
 
     testImplementation(libs.junit)
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 

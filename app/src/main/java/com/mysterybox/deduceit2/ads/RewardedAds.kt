@@ -11,6 +11,7 @@ import com.mysterybox.deduceit2.BuildConfig
 
 enum class RewardedAdPurpose {
     UnlockCase,
+    RevealLiar,
     RevealSolution
 }
 
@@ -82,6 +83,7 @@ class AdMobRewardedAdManager(private val activity: Activity) : RewardedAdManager
 
         val adUnitId = when (purpose) {
             RewardedAdPurpose.UnlockCase -> BuildConfig.ADMOB_REWARDED_UNLOCK_CASE_ID
+            RewardedAdPurpose.RevealLiar -> BuildConfig.ADMOB_REWARDED_REVEAL_LIAR_ID
             RewardedAdPurpose.RevealSolution -> BuildConfig.ADMOB_REWARDED_REVEAL_SOLUTION_ID
         }
 
