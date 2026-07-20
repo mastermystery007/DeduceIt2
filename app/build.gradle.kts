@@ -99,6 +99,8 @@ dependencies {
     implementation(libs.user.messaging.platform)
 
     testImplementation(libs.junit)
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
 
