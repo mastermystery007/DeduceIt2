@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -80,8 +81,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: DetectiveViewModel by viewModels()
 
     private lateinit var consentManager: AdConsentManager
-    private val rewardedAdManagerState =
-        MutableStateFlow<RewardedAdManager>(UnavailableRewardedAdManager)
+    private val rewardedAdManagerState = MutableStateFlow<RewardedAdManager>(UnavailableRewardedAdManager)
     private val unlockedCaseIdsState = MutableStateFlow((1..FREE_CASE_COUNT).toSet())
     private val privacyOptionsRequiredState = MutableStateFlow(false)
     private val mobileAdsInitializationStarted = AtomicBoolean(false)
@@ -93,9 +93,7 @@ class MainActivity : ComponentActivity() {
 
         consentManager = AdConsentManager.getInstance(applicationContext)
         unlockedCaseIdsState.value = CaseUnlockPreferences.load(this)
-        if (BuildConfig.DEBUG) {
-            rewardedAdManagerState.value = FakeRewardedAdManager()
-        }
+        if (BuildConfig.DEBUG) rewardedAdManagerState.value = FakeRewardedAdManager()
 
         setContent {
             DeduceItTheme {
@@ -104,16 +102,17 @@ class MainActivity : ComponentActivity() {
                 val rewardedAds by rewardedAdManagerState.collectAsState()
                 val unlockedCaseIds by unlockedCaseIdsState.collectAsState()
                 val privacyOptionsRequired by privacyOptionsRequiredState.collectAsState()
-                var showHowToPlay by remember {
-                    mutableStateOf(!OnboardingPreferences.hasSeen(activity))
-                }
+                var showHowToPlay by remember { mutableStateOf(!OnboardingPreferences.hasSeen(activity)) }
+                var isFirstLaunchHowToPlay by remember { mutableStateOf(showHowToPlay) }
 
                 if (showHowToPlay) {
+                    BackHandler(enabled = !isFirstLaunchHowToPlay) { showHowToPlay = false }
                     HowToPlayScreen(
-                        onDone = {
-                            OnboardingPreferences.markSeen(activity)
+                        onComplete = {
+                            if (isFirstLaunchHowToPlay) OnboardingPreferences.markSeen(activity)
                             showHowToPlay = false
-                        }
+                        },
+                        isFirstLaunch = isFirstLaunchHowToPlay
                     )
                 } else {
                     NavHost(navController = navController, startDestination = "dashboard") {
@@ -145,7 +144,10 @@ class MainActivity : ComponentActivity() {
                                         )
                                     }
                                 },
-                                onOpenHowToPlay = { showHowToPlay = true },
+                                onOpenHowToPlay = {
+                                    isFirstLaunchHowToPlay = false
+                                    showHowToPlay = true
+                                },
                                 onOpenPrivacyPolicy = ::openPrivacyPolicy,
                                 showPrivacyOptions = privacyOptionsRequired,
                                 onOpenPrivacyOptions = {
@@ -164,9 +166,7 @@ class MainActivity : ComponentActivity() {
                             arguments = listOf(navArgument("caseId") { type = NavType.IntType })
                         ) { entry ->
                             val caseId = entry.arguments?.getInt("caseId")
-                            LaunchedEffect(caseId) {
-                                viewModel.selectCase(caseId)
-                            }
+                            LaunchedEffect(caseId) { viewModel.selectCase(caseId) }
                             CasePlayScreen(
                                 viewModel = viewModel,
                                 rewardedAdManager = rewardedAds,
@@ -188,9 +188,7 @@ class MainActivity : ComponentActivity() {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)).apply {
             addCategory(Intent.CATEGORY_BROWSABLE)
         }
-        runCatching {
-            startActivity(intent)
-        }.onFailure { error ->
+        runCatching { startActivity(intent) }.onFailure { error ->
             Log.w(TAG, "Unable to open privacy policy", error)
             Toast.makeText(this, "Unable to open the privacy policy.", Toast.LENGTH_SHORT).show()
         }
@@ -198,13 +196,10 @@ class MainActivity : ComponentActivity() {
 
     private fun requestConsentAndConfigureAds() {
         consentManager.gatherConsent(this) { error ->
-            if (error != null) {
-                Log.w(TAG, "Consent gathering error: ${error.message}")
-            }
+            if (error != null) Log.w(TAG, "Consent gathering error: ${error.message}")
             refreshPrivacyOptionsState()
             configureRewardedAdsForCurrentConsent()
         }
-
         refreshPrivacyOptionsState()
         configureRewardedAdsForCurrentConsent()
     }
@@ -218,25 +213,21 @@ class MainActivity : ComponentActivity() {
             rewardedAdManagerState.value = FakeRewardedAdManager()
             return
         }
-
         if (!consentManager.canRequestAds) {
             rewardedAdManagerState.value = UnavailableRewardedAdManager
             return
         }
-
         if (mobileAdsInitializationStarted.compareAndSet(false, true)) {
             MobileAds.initialize(this) {
                 mobileAdsInitializationComplete.set(true)
-                rewardedAdManagerState.value =
-                    if (consentManager.canRequestAds) {
-                        AdMobRewardedAdManager(this)
-                    } else {
-                        UnavailableRewardedAdManager
-                    }
+                rewardedAdManagerState.value = if (consentManager.canRequestAds) {
+                    AdMobRewardedAdManager(this)
+                } else {
+                    UnavailableRewardedAdManager
+                }
             }
             return
         }
-
         if (
             mobileAdsInitializationComplete.get() &&
             rewardedAdManagerState.value === UnavailableRewardedAdManager
