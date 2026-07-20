@@ -1,6 +1,8 @@
 package com.mysterybox.deduceit2
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -144,6 +146,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onOpenHowToPlay = { showHowToPlay = true },
+                                onOpenPrivacyPolicy = ::openPrivacyPolicy,
                                 showPrivacyOptions = privacyOptionsRequired,
                                 onOpenPrivacyOptions = {
                                     consentManager.showPrivacyOptionsForm(activity) { formError ->
@@ -179,6 +182,18 @@ class MainActivity : ComponentActivity() {
         }
 
         requestConsentAndConfigureAds()
+    }
+
+    private fun openPrivacyPolicy() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL)).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+        }
+        runCatching {
+            startActivity(intent)
+        }.onFailure { error ->
+            Log.w(TAG, "Unable to open privacy policy", error)
+            Toast.makeText(this, "Unable to open the privacy policy.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun requestConsentAndConfigureAds() {
@@ -232,5 +247,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "MainActivity"
+        private const val PRIVACY_POLICY_URL =
+            "https://mastermystery007.github.io/privacy_policies/deduce-it-2/"
     }
 }
