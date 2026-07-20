@@ -12,13 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +46,7 @@ fun DashboardScreen(
     unlockedCaseIds: Set<Int> = (1..FREE_CASE_COUNT).toSet(),
     onOpenCase: (Int) -> Unit,
     onOpenHowToPlay: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit = {},
     showPrivacyOptions: Boolean = false,
     onOpenPrivacyOptions: () -> Unit = {}
 ) {
@@ -70,6 +65,9 @@ fun DashboardScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onOpenPrivacyPolicy) {
+                        Icon(Icons.Default.Policy, "Privacy policy", tint = NoirAmber)
+                    }
                     if (showPrivacyOptions) {
                         IconButton(onClick = onOpenPrivacyOptions) {
                             Icon(Icons.Default.PrivacyTip, "Privacy choices", tint = NoirAmber)
@@ -91,7 +89,7 @@ fun DashboardScreen(
                 .padding(horizontal = 16.dp)
         ) {
             Text(
-                text = "NEW FILES. NEW SUSPECTS. NEW LIES.",
+                text = "SMALL MYSTERIES. HARMLESS MISCHIEF. PURE LOGIC.",
                 color = SlateGrey,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 12.sp,
@@ -120,6 +118,7 @@ fun DashboardScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
+
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -158,8 +157,12 @@ private fun CaseCard(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .border(
-                width = if (solved) 1.dp else if (locked) 1.dp else 0.dp,
-                color = if (solved) ClueGreen else if (locked) NoirAmber.copy(alpha = 0.45f) else Color.Transparent,
+                width = if (solved || locked) 1.dp else 0.dp,
+                color = when {
+                    solved -> ClueGreen
+                    locked -> NoirAmber.copy(alpha = 0.45f)
+                    else -> Color.Transparent
+                },
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(containerColor = CharcoalSurface)
@@ -207,11 +210,7 @@ private fun CaseCard(
                     locked -> "Unlock with rewarded ad"
                     else -> "Open"
                 },
-                tint = when {
-                    solved -> ClueGreen
-                    locked -> NoirAmber
-                    else -> NoirAmber
-                },
+                tint = if (solved) ClueGreen else NoirAmber,
                 modifier = Modifier.size(30.dp)
             )
         }
@@ -265,10 +264,10 @@ fun HowToPlayScreen(onDone: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             InstructionCard("1. READ THE DOSSIER", "Start with the incident report, verified clues, and witness statements.")
-            InstructionCard("2. REVIEW THE CAST", "Study the suspects, possible objects, and locations involved in the case.")
+            InstructionCard("2. REVIEW THE CAST", "Study the suspects, possible objects, and locations involved in the harmless mystery.")
             InstructionCard("3. MARK THE GRID", "Tap a cell to cycle through X, O, and blank. Use X to exclude a pairing and O to confirm it.")
             InstructionCard("4. HANDLE LIAR CASES", "When a case says exactly one witness is lying, test all three statements and identify the false witness.")
-            InstructionCard("5. MAKE THE ACCUSATION", "Choose the culprit, object, location, and liar when required. Checking an accusation is free.")
+            InstructionCard("5. MAKE THE DEDUCTION", "Choose the responsible person, object, location, and false witness when required. Checking your deduction is free.")
             InstructionCard("CASE ACCESS", "Cases 1 and 2 are free. Each later case is permanently unlocked after one rewarded ad.")
             Button(
                 onClick = onDone,
@@ -311,9 +310,9 @@ fun CasePlayScreen(
     val activeCase = mystery ?: return
 
     var tab by remember(activeCase.id) { mutableStateOf("DOSSIER") }
-    var showSolvedDialog by remember { mutableStateOf(false) }
-    var showRevealDialog by remember { mutableStateOf(false) }
-    var adNotice by remember { mutableStateOf<String?>(null) }
+    var showSolvedDialog by remember(activeCase.id) { mutableStateOf(false) }
+    var showRevealDialog by remember(activeCase.id) { mutableStateOf(false) }
+    var adNotice by remember(activeCase.id) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(result) {
         if (result == AccusationResult.Success) showSolvedDialog = true
@@ -374,7 +373,12 @@ fun CasePlayScreen(
                     if (activeCase.hasLiar) Badge("ONE LIAR", BloodRed)
                 }
                 if (completed) {
-                    Text("SOLVED", color = ClueGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text(
+                        "SOLVED",
+                        color = ClueGreen,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -389,13 +393,13 @@ fun CasePlayScreen(
                 "DEDUCE" -> DeduceTab(
                     mystery = activeCase,
                     suspect = chosenSuspect,
-                    weapon = chosenWeapon,
+                    objectName = chosenWeapon,
                     location = chosenLocation,
                     liar = chosenLiar,
                     result = result,
                     adNotice = adNotice,
                     onSuspect = viewModel::chooseSuspect,
-                    onWeapon = viewModel::chooseWeapon,
+                    onObject = viewModel::chooseWeapon,
                     onLocation = viewModel::chooseLocation,
                     onLiar = viewModel::chooseLiar,
                     onCheck = viewModel::checkAccusation,
@@ -416,7 +420,7 @@ fun CasePlayScreen(
 
     if (showSolvedDialog) {
         SolutionDialog(
-            title = "CASE CLOSED",
+            title = "MYSTERY SOLVED",
             mystery = activeCase,
             onDismiss = {
                 showSolvedDialog = false
@@ -482,6 +486,7 @@ private fun DossierTab(
                 Text(mystery.story, color = SlateGrey, lineHeight = 20.sp)
             }
         }
+
         Text("VERIFIED CLUES", color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         mystery.clues.forEachIndexed { index, clue ->
             Card(colors = CardDefaults.cardColors(containerColor = SlateCard)) {
@@ -498,6 +503,7 @@ private fun DossierTab(
                 }
             }
         }
+
         if (mystery.hasLiar) {
             Text("WITNESS STATEMENTS", color = BloodRed, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             Text("Exactly one statement below is false.", color = MutedGrey, fontSize = 12.sp)
@@ -644,30 +650,34 @@ private fun GridCell(mark: String, enabled: Boolean, onClick: () -> Unit) {
 private fun DeduceTab(
     mystery: MysteryCase,
     suspect: String?,
-    weapon: String?,
+    objectName: String?,
     location: String?,
     liar: String?,
     result: AccusationResult,
     adNotice: String?,
     onSuspect: (String) -> Unit,
-    onWeapon: (String) -> Unit,
+    onObject: (String) -> Unit,
     onLocation: (String) -> Unit,
     onLiar: (String) -> Unit,
     onCheck: () -> Unit,
     onReveal: () -> Unit
 ) {
-    val ready = suspect != null && weapon != null && location != null && (!mystery.hasLiar || liar != null)
+    val ready = suspect != null &&
+        objectName != null &&
+        location != null &&
+        (!mystery.hasLiar || liar != null)
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("FINAL ACCUSATION", color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-        SelectionMenu("Culprit", suspect, mystery.suspects, onSuspect)
-        SelectionMenu("Object used", weapon, mystery.weapons, onWeapon)
+        Text("FINAL DEDUCTION", color = NoirAmber, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+        SelectionMenu("Responsible person", suspect, mystery.suspects, onSuspect)
+        SelectionMenu("Object used", objectName, mystery.weapons, onObject)
         SelectionMenu("Location", location, mystery.locations, onLocation)
         if (mystery.hasLiar) SelectionMenu("False witness", liar, mystery.suspects, onLiar)
 
         if (result == AccusationResult.Incorrect) {
             Card(colors = CardDefaults.cardColors(containerColor = BloodRed.copy(alpha = 0.14f))) {
                 Text(
-                    "The accusation conflicts with the evidence. Recheck the grid and liar statements.",
+                    "The deduction conflicts with the evidence. Recheck the grid and witness statements.",
                     color = BloodRed,
                     modifier = Modifier.padding(12.dp)
                 )
@@ -681,13 +691,13 @@ private fun DeduceTab(
             colors = ButtonDefaults.buttonColors(containerColor = NoirAmber, contentColor = Color.Black),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("CHECK ACCUSATION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            Text("CHECK DEDUCTION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
         }
         OutlinedButton(onClick = onReveal, modifier = Modifier.fillMaxWidth()) {
             Text("WATCH AD TO REVEAL SOLUTION", color = BloodRed, fontFamily = FontFamily.Monospace)
         }
         Text(
-            "Checking an accusation is free. Revealing the solution early requires a rewarded ad.",
+            "Checking a deduction is free. Revealing the solution early requires a rewarded ad.",
             color = MutedGrey,
             fontSize = 10.sp,
             textAlign = TextAlign.Center,
@@ -744,7 +754,7 @@ private fun SolutionDialog(
             ) {
                 Card(colors = CardDefaults.cardColors(containerColor = SlateCard)) {
                     Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        SolutionRow("CULPRIT", mystery.solutionSuspect)
+                        SolutionRow("RESPONSIBLE", mystery.solutionSuspect)
                         SolutionRow("OBJECT", mystery.solutionWeapon)
                         SolutionRow("LOCATION", mystery.solutionLocation)
                         if (mystery.solutionLiar != null) SolutionRow("FALSE WITNESS", mystery.solutionLiar)
