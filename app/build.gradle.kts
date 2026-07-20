@@ -20,10 +20,6 @@ android {
             .orElse(providers.gradleProperty("ADMOB_APP_ID"))
             .orElse(testAppId)
             .get()
-        val rewardedCheckId = providers.environmentVariable("ADMOB_REWARDED_CHECK_ANSWER_ID")
-            .orElse(providers.gradleProperty("ADMOB_REWARDED_CHECK_ANSWER_ID"))
-            .orElse(testRewardedId)
-            .get()
         val rewardedUnlockId = providers.environmentVariable("ADMOB_REWARDED_UNLOCK_CASE_ID")
             .orElse(providers.gradleProperty("ADMOB_REWARDED_UNLOCK_CASE_ID"))
             .orElse(testRewardedId)
@@ -34,7 +30,6 @@ android {
             .get()
 
         manifestPlaceholders["adMobAppId"] = adMobAppId
-        buildConfigField("String", "ADMOB_REWARDED_CHECK_ANSWER_ID", "\"$rewardedCheckId\"")
         buildConfigField("String", "ADMOB_REWARDED_UNLOCK_CASE_ID", "\"$rewardedUnlockId\"")
         buildConfigField("String", "ADMOB_REWARDED_REVEAL_SOLUTION_ID", "\"$rewardedRevealId\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -43,7 +38,10 @@ android {
     val keystorePath = System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH")?.toString()
     val storePasswordValue = System.getenv("STORE_PASSWORD") ?: project.findProperty("STORE_PASSWORD")?.toString()
     val keyPasswordValue = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")?.toString()
-    val hasReleaseSigning = keystorePath != null && storePasswordValue != null && keyPasswordValue != null
+    val hasReleaseSigning =
+        !keystorePath.isNullOrBlank() &&
+            !storePasswordValue.isNullOrBlank() &&
+            !keyPasswordValue.isNullOrBlank()
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -97,4 +95,34 @@ dependencies {
 
     testImplementation(libs.junit)
     debugImplementation(libs.androidx.compose.ui.tooling)
+}
+
+tasks.configureEach {
+    if (name == "assembleRelease" || name == "bundleRelease") {
+        val hasConfiguredReleaseSigning =
+            !System.getenv("KEYSTORE_PATH").isNullOrBlank() &&
+                !System.getenv("STORE_PASSWORD").isNullOrBlank() &&
+                !System.getenv("KEY_PASSWORD").isNullOrBlank() ||
+                !project.findProperty("KEYSTORE_PATH")?.toString().isNullOrBlank() &&
+                !project.findProperty("STORE_PASSWORD")?.toString().isNullOrBlank() &&
+                !project.findProperty("KEY_PASSWORD")?.toString().isNullOrBlank()
+
+        val hasAndroidStudioInjectedSigning = listOf(
+            "android.injected.signing.store.file",
+            "android.injected.signing.store.password",
+            "android.injected.signing.key.alias",
+            "android.injected.signing.key.password",
+        ).all { propertyName ->
+            !project.findProperty(propertyName)?.toString().isNullOrBlank()
+        }
+
+        doFirst {
+            if (!hasConfiguredReleaseSigning && !hasAndroidStudioInjectedSigning) {
+                throw GradleException(
+                    "Release signing configuration is missing. Use Android Studio's Generate Signed Bundle wizard, " +
+                        "or set KEYSTORE_PATH, STORE_PASSWORD, and KEY_PASSWORD before running assembleRelease or bundleRelease."
+                )
+            }
+        }
+    }
 }
