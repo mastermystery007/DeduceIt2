@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
     private val privacyOptionsRequiredState = MutableStateFlow(false)
     private val mobileAdsInitializationStarted = AtomicBoolean(false)
     private val mobileAdsInitializationComplete = AtomicBoolean(false)
+    private val unlockFailures = mutableMapOf<Int, Int>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,11 +136,30 @@ class MainActivity : ComponentActivity() {
                                                 navController.navigate("case/$caseId")
                                             },
                                             onUnavailable = {
-                                                Toast.makeText(
-                                                    activity,
-                                                    "Rewarded ad is not ready. Please try again shortly.",
-                                                    Toast.LENGTH_SHORT
-                                                ).show()
+                                                // Never lock players out when no ad can be served
+                                                // (no consent, offline, no inventory): the second
+                                                // failed try for the same case unlocks it anyway.
+                                                val attempts = (unlockFailures[caseId] ?: 0) + 1
+                                                unlockFailures[caseId] = attempts
+                                                if (attempts >= 2) {
+                                                    unlockedCaseIdsState.value = CaseUnlockPreferences.unlock(
+                                                        activity,
+                                                        caseId,
+                                                        unlockedCaseIdsState.value
+                                                    )
+                                                    Toast.makeText(
+                                                        activity,
+                                                        "No ad available, so this case is unlocked for free.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                    navController.navigate("case/$caseId")
+                                                } else {
+                                                    Toast.makeText(
+                                                        activity,
+                                                        "Ad is still loading. Tap the case again in a moment.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
                                             }
                                         )
                                     }

@@ -1,5 +1,10 @@
 package com.mysterybox.deduceit2.ui
 
+import com.mysterybox.deduceit2.ReviewPrompt
+import com.mysterybox.deduceit2.BuildConfig
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.content.Context
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -105,11 +110,14 @@ fun CasePlayScreen(
     var revealedLiar by rememberSaveable(activeCase.id) { mutableStateOf<String?>(null) }
     var showLiarDialog by remember { mutableStateOf(false) }
     var showAdUnavailableDialog by remember { mutableStateOf(false) }
+    val reviewContext = LocalContext.current
+    val completedCount = viewModel.completedCaseIds.collectAsState().value.size
 
     LaunchedEffect(result) {
         if (result == AccusationResult.Success) {
             solutionDialogTitle = "MYSTERY SOLVED"
             showSolutionDialog = true
+            ReviewPrompt.maybeAsk(reviewContext, solvedCount = completedCount)
         }
     }
 
@@ -262,9 +270,12 @@ fun CasePlayScreen(
     }
 
     if (showSolutionDialog) {
+        val context = LocalContext.current
         SolutionDialog(
             title = solutionDialogTitle,
             mystery = activeCase,
+            solvedByPlayer = result == AccusationResult.Success,
+            onShare = { shareSolvedCase(context, activeCase) },
             onDismiss = {
                 showSolutionDialog = false
                 if (result == AccusationResult.Success) onBack()
@@ -866,7 +877,13 @@ private fun SelectionMenu(
 }
 
 @Composable
-private fun SolutionDialog(title: String, mystery: MysteryCase, onDismiss: () -> Unit) {
+private fun SolutionDialog(
+    title: String,
+    mystery: MysteryCase,
+    solvedByPlayer: Boolean,
+    onShare: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -877,7 +894,11 @@ private fun SolutionDialog(title: String, mystery: MysteryCase, onDismiss: () ->
                 modifier = Modifier.heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Your deduction matches the evidence.", style = MaterialTheme.typography.bodyMedium, color = GridWhite)
+                Text(
+                    if (solvedByPlayer) "Your deduction matches the evidence." else "Here is how the evidence fits together.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GridWhite
+                )
                 Card(colors = CardDefaults.cardColors(containerColor = SlateCard), shape = RoundedCornerShape(8.dp)) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         SolutionRow("Responsible:", mystery.solutionSuspect)
@@ -896,6 +917,15 @@ private fun SolutionDialog(title: String, mystery: MysteryCase, onDismiss: () ->
                 Text("CLOSE FILE", color = NoirAmber, fontFamily = FontFamily.Monospace)
             }
         },
+        dismissButton = if (solvedByPlayer) {
+            {
+                TextButton(onClick = onShare) {
+                    Text("SHARE", color = SlateGrey, fontFamily = FontFamily.Monospace)
+                }
+            }
+        } else {
+            null
+        },
         containerColor = CharcoalSurface,
         shape = RoundedCornerShape(16.dp)
     )
@@ -907,4 +937,15 @@ private fun SolutionRow(label: String, value: String) {
         Text(label, color = NoirAmber, style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, modifier = Modifier.width(105.dp))
         Text(value, color = GridWhite, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
+}
+
+/** Share sheet for a solved case, with the Play Store link so friends can try it. */
+private fun shareSolvedCase(context: Context, mystery: MysteryCase) {
+    val text = "I cracked Case #${mystery.id}: ${mystery.title} in Deduce It. Can you solve it?\n" +
+        "https://play.google.com/store/apps/details?id=${BuildConfig.APPLICATION_ID}"
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, text)
+    }
+    runCatching { context.startActivity(Intent.createChooser(send, "Share your case")) }
 }

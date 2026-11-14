@@ -11,8 +11,8 @@ android {
         applicationId = "com.mysterybox.deduceit2"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         val testAppId = "ca-app-pub-3940256099942544~3347511713"
         val testRewardedId = "ca-app-pub-3940256099942544/5224354917"
@@ -97,6 +97,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
+    implementation(libs.play.review)
 
     testImplementation(libs.junit)
     testImplementation("androidx.test:core:1.6.1")
