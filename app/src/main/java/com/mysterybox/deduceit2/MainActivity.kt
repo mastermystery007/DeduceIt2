@@ -1,5 +1,6 @@
 package com.mysterybox.deduceit2
 
+import com.mysterybox.deduceit2.ads.AdFallback
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -136,12 +137,11 @@ class MainActivity : ComponentActivity() {
                                                 navController.navigate("case/$caseId")
                                             },
                                             onUnavailable = {
-                                                // Never lock players out when no ad can be served
-                                                // (no consent, offline, no inventory): the second
-                                                // failed try for the same case unlocks it anyway.
+                                                // Offline never unlocks (see AdFallback). Online with
+                                                // no ad to show: the second try unlocks, capped per day.
                                                 val attempts = (unlockFailures[caseId] ?: 0) + 1
                                                 unlockFailures[caseId] = attempts
-                                                if (attempts >= 2) {
+                                                if (AdFallback.allowFreeGrant(activity, attempts)) {
                                                     unlockedCaseIdsState.value = CaseUnlockPreferences.unlock(
                                                         activity,
                                                         caseId,
@@ -156,7 +156,11 @@ class MainActivity : ComponentActivity() {
                                                 } else {
                                                     Toast.makeText(
                                                         activity,
-                                                        "Ad is still loading. Tap the case again in a moment.",
+                                                        if (AdFallback.isOnline(activity)) {
+                                                            "Ad is still loading. Tap the case again in a moment."
+                                                        } else {
+                                                            "You're offline. Connect to the internet to unlock this case."
+                                                        },
                                                         Toast.LENGTH_SHORT
                                                     ).show()
                                                 }
